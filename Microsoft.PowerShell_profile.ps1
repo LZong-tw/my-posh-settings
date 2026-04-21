@@ -23,6 +23,16 @@ function dev { Set-Location "C:\dev\$args" }
 #region zoxide (smart cd: `z <part-of-path>`)
 if (Get-Command zoxide -ErrorAction SilentlyContinue) {
     Invoke-Expression (& { (zoxide init powershell) -join "`n" })
+
+    Register-ArgumentCompleter -CommandName z -ScriptBlock {
+        param($cmd, $param, $word)
+        (zoxide query --list 2>$null) |
+            Where-Object { $_ -like "*$word*" } |
+            ForEach-Object {
+                $leaf = Split-Path $_ -Leaf
+                [System.Management.Automation.CompletionResult]::new($leaf, $leaf, 'ParameterValue', $_)
+            }
+    }
 }
 #endregion
 
