@@ -24,7 +24,18 @@ function dev { Set-Location "C:\dev\$args" }
 if (Get-Command zoxide -ErrorAction SilentlyContinue) {
     Invoke-Expression (& { (zoxide init powershell) -join "`n" })
 
-    Register-ArgumentCompleter -CommandName z -ScriptBlock {
+    # zoxide ships `z` as an alias for `__zoxide_z`, which uses $args (no param block),
+    # so Register-ArgumentCompleter has nothing to bind to. Replace with a real function
+    # that forwards to __zoxide_z but exposes a named parameter for completion.
+    Remove-Item Alias:z -Force -ErrorAction SilentlyContinue
+    function z {
+        param(
+            [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+            [string[]]$Query
+        )
+        __zoxide_z @Query
+    }
+    Register-ArgumentCompleter -CommandName z -ParameterName Query -ScriptBlock {
         param($cmd, $param, $word)
         (zoxide query --list 2>$null) |
             Where-Object { $_ -like "*$word*" } |
