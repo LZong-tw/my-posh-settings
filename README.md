@@ -25,7 +25,7 @@ If you cloned to a different path, pass it explicitly:
 | Component | What it does |
 | --- | --- |
 | `dev <subdir>` | `cd C:\dev\<subdir>` |
-| `z <part-of-path>` | [zoxide](https://github.com/ajeetdsouza/zoxide) smart cd |
+| `z <part-of-path>` | [zoxide](https://github.com/ajeetdsouza/zoxide) smart cd, with `Tab` completion against the zoxide DB |
 | `vi` → `vim` | alias if vim is installed |
 | PowerToys CommandNotFound | suggests winget package if a command is missing |
 | `kill-orphan-serena` | kills [Serena](https://github.com/oraios/serena) MCP process trees whose `claude.exe` parent is gone — useful after Claude Code crashes |
