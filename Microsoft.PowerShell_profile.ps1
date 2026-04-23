@@ -17,7 +17,27 @@ if (Get-Command vim -ErrorAction SilentlyContinue) {
 
 #region Quick directory jumps
 # `dev <subdir>` -> cd C:\dev\<subdir>
-function dev { Set-Location "C:\dev\$args" }
+function dev {
+    param([Parameter(Position = 0)][string]$Subdir)
+    Set-Location "C:\dev\$Subdir"
+}
+# Tab completion: prefer zoxide DB entries under C:\dev (frecency-ranked),
+# fall back to a directory listing for dirs you haven't visited yet.
+Register-ArgumentCompleter -CommandName dev -ParameterName Subdir -ScriptBlock {
+    param($cmd, $param, $word)
+    $seen = @{}
+    if (Get-Command zoxide -ErrorAction SilentlyContinue) {
+        zoxide query --list 2>$null |
+            Where-Object { $_ -like 'C:\dev\*' } |
+            ForEach-Object { Split-Path $_ -Leaf } |
+            ForEach-Object { $seen[$_] = $true; $_ } |
+            Where-Object { $_ -like "*$word*" } |
+            ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', "C:\dev\$_") }
+    }
+    Get-ChildItem 'C:\dev' -Directory -ErrorAction SilentlyContinue |
+        Where-Object { -not $seen[$_.Name] -and $_.Name -like "*$word*" } |
+        ForEach-Object { [System.Management.Automation.CompletionResult]::new($_.Name, $_.Name, 'ParameterValue', $_.FullName) }
+}
 #endregion
 
 #region zoxide (smart cd: `z <part-of-path>`)
