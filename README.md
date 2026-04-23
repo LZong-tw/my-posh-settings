@@ -24,7 +24,7 @@ If you cloned to a different path, pass it explicitly:
 
 | Component | What it does |
 | --- | --- |
-| `dev <subdir>` | `cd C:\dev\<subdir>` |
+| `dev <subdir>` | `cd C:\dev\<subdir>`, with `Tab` completion sourced from the zoxide DB (frecency-ranked) plus any unseen `C:\dev\*` directories |
 | `z <part-of-path>` | [zoxide](https://github.com/ajeetdsouza/zoxide) smart cd, with `Tab` completion against the zoxide DB |
 | `vi` → `vim` | alias if vim is installed |
 | PowerToys CommandNotFound | suggests winget package if a command is missing |
