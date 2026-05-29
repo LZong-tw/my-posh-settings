@@ -33,7 +33,7 @@
           "powerline_symbol": "",
           "foreground": "p:white",
           "background": "p:blue",
-          "template": " {{ .UserName }}@{{ .HostName }} "
+          "template": " {{ if eq .UserName \"USER\" }}LZong{{ else }}{{ .UserName }}{{ end }}@{{ .HostName }} "
         },
         {
           "type": "path",
@@ -108,10 +108,8 @@
         },
         {
           "type": "time",
-          "style": "diamond",
-          "foreground": "p:white",
-          "background": "p:grey",
-          "trailing_diamond": "",
+          "style": "plain",
+          "foreground": "p:grey",
           "properties": {
             "time_format": "15:04"
           },
