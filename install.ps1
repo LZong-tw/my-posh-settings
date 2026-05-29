@@ -44,4 +44,18 @@ Write-Host "Edit profile: $shared" -ForegroundColor DarkGray
 if (-not (Get-Command oh-my-posh -ErrorAction SilentlyContinue)) {
     Write-Host "[hint] Oh My Posh is optional but recommended for the shared prompt:" -ForegroundColor DarkYellow
     Write-Host "       winget install JanDeDobbeleer.OhMyPosh -e" -ForegroundColor DarkGray
+} else {
+    $fontRegistryPath = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts'
+    $fontNames = @()
+    try {
+        $fontNames = (Get-ItemProperty $fontRegistryPath -ErrorAction Stop).PSObject.Properties.Name
+    } catch {
+        $fontNames = @()
+    }
+
+    if ($fontNames -notcontains 'MesloLGM Nerd Font Mono Regular (TrueType)') {
+        Write-Host "[hint] Install the Meslo Nerd Font so prompt glyphs render correctly:" -ForegroundColor DarkYellow
+        Write-Host "       oh-my-posh font install Meslo --headless" -ForegroundColor DarkGray
+        Write-Host "       Then set Windows Terminal font face to: MesloLGM Nerd Font Mono" -ForegroundColor DarkGray
+    }
 }

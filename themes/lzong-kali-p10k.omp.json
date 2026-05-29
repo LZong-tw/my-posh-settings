@@ -68,43 +68,54 @@
       ]
     },
     {
-      "type": "rprompt",
+      "type": "prompt",
+      "alignment": "left",
       "segments": [
         {
           "type": "status",
-          "style": "plain",
-          "foreground": "p:red",
-          "template": "{{ if gt .Code 0 }} ✘ {{ .Code }}{{ end }}"
+          "style": "powerline",
+          "powerline_symbol": "",
+          "foreground": "p:white",
+          "background": "p:red",
+          "template": "{{ if gt .Code 0 }} ✘ {{ .Code }} {{ end }}"
         },
         {
           "type": "executiontime",
-          "style": "plain",
-          "foreground": "p:yellow",
+          "style": "powerline",
+          "powerline_symbol": "",
+          "foreground": "p:black",
+          "background": "p:yellow",
           "properties": {
             "threshold": 500
           },
-          "template": " {{ .FormattedMs }}"
+          "template": " {{ .FormattedMs }} "
         },
         {
           "type": "python",
-          "style": "plain",
-          "foreground": "p:green",
-          "template": "  {{ if .Venv }}{{ .Venv }}{{ else }}{{ .Full }}{{ end }}"
+          "style": "powerline",
+          "powerline_symbol": "",
+          "foreground": "p:black",
+          "background": "p:green",
+          "template": "  {{ if .Venv }}{{ .Venv }}{{ else }}{{ .Full }}{{ end }} "
         },
         {
           "type": "node",
-          "style": "plain",
-          "foreground": "p:green",
-          "template": "  {{ .Full }}"
+          "style": "powerline",
+          "powerline_symbol": "",
+          "foreground": "p:black",
+          "background": "p:cyan",
+          "template": "  {{ .Full }} "
         },
         {
           "type": "time",
-          "style": "plain",
-          "foreground": "p:grey",
+          "style": "diamond",
+          "foreground": "p:white",
+          "background": "p:grey",
+          "trailing_diamond": "",
           "properties": {
             "time_format": "15:04"
           },
-          "template": " {{ .CurrentDate | date .Format }}"
+          "template": " {{ .CurrentDate | date .Format }} "
         }
       ]
     },
@@ -126,10 +137,5 @@
     "foreground": "p:yellow",
     "background": "transparent",
     "template": "╰─> "
-  },
-  "transient_prompt": {
-    "foreground": "p:blue",
-    "background": "transparent",
-    "template": "╰─$ "
   }
 }
