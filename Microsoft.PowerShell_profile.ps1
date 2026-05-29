@@ -77,7 +77,7 @@ if (Get-Module -ListAvailable -Name PSReadLine) {
 #endregion
 
 #region Aliases and zsh-style helpers
-Remove-AliasIfExists -Name history, gs, ci
+Remove-AliasIfExists -Name history, gs, ci, ls
 
 if (Test-Command vim) {
     Set-Alias vi vim
@@ -126,11 +126,35 @@ function art { php artisan @args }
 function pa { php artisan @args }
 function mfs { php artisan migrate:fresh --seed @args }
 
-if (Test-Command eza) {
-    function l { eza --icons --git @args }
-    function ll { eza -l --icons --git @args }
-    function la { eza -la --icons --git @args }
+function Resolve-EzaCommand {
+    $command = Get-Command eza -CommandType Application, ExternalScript -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($command) {
+        if ($command.Path) {
+            return $command.Path
+        }
+        return $command.Source
+    }
+
+    $wingetEza = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages\eza-community.eza_Microsoft.Winget.Source_8wekyb3d8bbwe\eza.exe'
+    if (Test-Path $wingetEza) {
+        return $wingetEza
+    }
+
+    return $null
+}
+
+$MyPoshEzaCommand = Resolve-EzaCommand
+if ($MyPoshEzaCommand) {
+    if (-not (Test-Command eza)) {
+        function eza { & $MyPoshEzaCommand @args }
+    }
+    function ls { & $MyPoshEzaCommand --icons --git @args }
+    function l { & $MyPoshEzaCommand --icons --git @args }
+    function ll { & $MyPoshEzaCommand -l --icons --git @args }
+    function la { & $MyPoshEzaCommand -la --icons --git @args }
 } else {
+    function ls { Get-ChildItem @args }
     function l { Get-ChildItem @args }
     function ll { Get-ChildItem @args }
     function la { Get-ChildItem -Force @args }

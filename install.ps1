@@ -59,3 +59,9 @@ if (-not (Get-Command oh-my-posh -ErrorAction SilentlyContinue)) {
         Write-Host "       Then set Windows Terminal font face to: MesloLGM Nerd Font Mono" -ForegroundColor DarkGray
     }
 }
+
+$wingetEza = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages\eza-community.eza_Microsoft.Winget.Source_8wekyb3d8bbwe\eza.exe'
+if (-not (Get-Command eza -CommandType Application, ExternalScript -ErrorAction SilentlyContinue) -and -not (Test-Path $wingetEza)) {
+    Write-Host "[hint] eza is optional but recommended for zsh-style ls/l/ll/la:" -ForegroundColor DarkYellow
+    Write-Host "       winget install eza-community.eza -e" -ForegroundColor DarkGray
+}
