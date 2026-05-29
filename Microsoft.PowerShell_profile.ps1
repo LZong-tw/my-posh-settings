@@ -306,7 +306,7 @@ function kill-orphan-serena {
 #endregion
 
 #region Oh My Posh prompt
-$themePath = Join-Path $MyPoshSettingsRoot 'themes\lzong-kali-p10k.omp.json'
+$themePath = Join-Path $MyPoshSettingsRoot 'themes\lzong-p10k.omp.json'
 if ((Test-Command oh-my-posh) -and (Test-Path $themePath)) {
     $ompShell = if ($PSVersionTable.PSEdition -eq 'Desktop') { 'powershell' } else { 'pwsh' }
     oh-my-posh init $ompShell --config $themePath | Invoke-Expression

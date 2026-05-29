@@ -34,7 +34,7 @@ If you cloned to a different path, pass it explicitly:
 
 | Component | What it does |
 | --- | --- |
-| Oh My Posh | Loads `themes/lzong-kali-p10k.omp.json`, a two-line Kali/Powerlevel10k-inspired prompt with OS, user/host, path, git, status, duration, Python, Node, and time. Runtime info is rendered as normal prompt segments instead of `rprompt`/`transient_prompt` to avoid Windows Terminal redraw flicker on Enter; the clock is muted plain text so an otherwise-empty prompt does not end with a bulky block |
+| Oh My Posh | Loads `themes/lzong-p10k.omp.json`, a Powerlevel10k-style prompt ported from `my-zsh-settings/zsh/.p10k.zsh`: left side is OS, directory, and git; right side is status, duration, Python environment, and `at hh:mm:ss AM/PM`. Local `user@host` and direct Node version are intentionally omitted to match the zsh source of truth |
 | PSReadLine | Emacs editing, duplicate-aware history, inline history suggestions, menu completion, `Ctrl+U`, `Ctrl+Left/Right`, `Ctrl+Delete`, `Ctrl+R`, `Tab`, and `Shift+Tab` |
 | `dev <subdir>` | `cd C:\dev\<subdir>`, with `Tab` completion sourced from the zoxide DB (frecency-ranked) plus any unseen `C:\dev\*` directories |
 | `z <part-of-path>` | [zoxide](https://github.com/ajeetdsouza/zoxide) smart cd, with `Tab` completion against the zoxide DB |

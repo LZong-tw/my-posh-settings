@@ -28,14 +28,6 @@
           "template": " {{ .Icon }} "
         },
         {
-          "type": "session",
-          "style": "powerline",
-          "powerline_symbol": "",
-          "foreground": "p:white",
-          "background": "p:blue",
-          "template": " {{ if eq .UserName \"USER\" }}LZong{{ else }}{{ .UserName }}{{ end }}@{{ .HostName }} "
-        },
-        {
           "type": "path",
           "style": "powerline",
           "powerline_symbol": "",
@@ -69,51 +61,53 @@
     },
     {
       "type": "prompt",
-      "alignment": "left",
+      "alignment": "right",
       "segments": [
         {
           "type": "status",
-          "style": "powerline",
-          "powerline_symbol": "",
-          "foreground": "p:white",
-          "background": "p:red",
-          "template": "{{ if gt .Code 0 }} ✘ {{ .Code }} {{ end }}"
+          "style": "diamond",
+          "leading_diamond": "",
+          "foreground": "p:green",
+          "background": "p:black",
+          "properties": {
+            "always_enabled": true
+          },
+          "template": " {{ if eq .Code 0 }}✔{{ else }}✘ {{ .Code }}{{ end }} "
         },
         {
           "type": "executiontime",
-          "style": "powerline",
-          "powerline_symbol": "",
+          "style": "diamond",
+          "leading_diamond": "",
           "foreground": "p:black",
           "background": "p:yellow",
           "properties": {
-            "threshold": 500
+            "threshold": 3000
           },
-          "template": " {{ .FormattedMs }} "
+          "template": " took {{ .FormattedMs }} "
         },
         {
           "type": "python",
-          "style": "powerline",
-          "powerline_symbol": "",
+          "style": "diamond",
+          "leading_diamond": "",
           "foreground": "p:black",
-          "background": "p:green",
-          "template": "  {{ if .Venv }}{{ .Venv }}{{ else }}{{ .Full }}{{ end }} "
-        },
-        {
-          "type": "node",
-          "style": "powerline",
-          "powerline_symbol": "",
-          "foreground": "p:black",
-          "background": "p:cyan",
-          "template": "  {{ .Full }} "
+          "background": "p:blue",
+          "properties": {
+            "display_mode": "environment",
+            "fetch_version": false
+          },
+          "template": "{{ if .Venv }} {{ .Venv }} {{ end }}"
         },
         {
           "type": "time",
-          "style": "plain",
-          "foreground": "p:grey",
+          "style": "diamond",
+          "foreground": "p:black",
+          "background": "p:white",
+          "leading_diamond": "",
+          "trailing_diamond": "",
           "properties": {
-            "time_format": "15:04"
+            "time_format": "03:04:05 PM"
           },
-          "template": " {{ .CurrentDate | date .Format }} "
+          "template": " at {{ .CurrentDate | date .Format }} "
         }
       ]
     },
@@ -126,7 +120,7 @@
           "type": "text",
           "style": "plain",
           "foreground": "p:blue",
-          "template": "╰─$ "
+          "template": "╰─"
         }
       ]
     }
@@ -134,6 +128,6 @@
   "secondary_prompt": {
     "foreground": "p:yellow",
     "background": "transparent",
-    "template": "╰─> "
+    "template": "├─> "
   }
 }
