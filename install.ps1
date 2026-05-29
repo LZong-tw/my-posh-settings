@@ -40,3 +40,8 @@ foreach ($t in $targets) {
 
 Write-Host "`nDone. Open a new shell to pick up the profile." -ForegroundColor Green
 Write-Host "Edit profile: $shared" -ForegroundColor DarkGray
+
+if (-not (Get-Command oh-my-posh -ErrorAction SilentlyContinue)) {
+    Write-Host "[hint] Oh My Posh is optional but recommended for the shared prompt:" -ForegroundColor DarkYellow
+    Write-Host "       winget install JanDeDobbeleer.OhMyPosh -e" -ForegroundColor DarkGray
+}

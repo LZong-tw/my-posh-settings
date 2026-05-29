@@ -1,11 +1,15 @@
 # my-posh-settings
 
 Personal PowerShell profile shared by Windows PowerShell 5.1 and PowerShell 7+.
+It mirrors the shared behavior from
+[`my-zsh-settings`](https://github.com/LZong-tw/my-zsh-settings) where the
+PowerShell ecosystem has a clean equivalent.
 
 ## Install
 
 ```powershell
 git clone https://github.com/LZong-tw/my-posh-settings.git C:\dev\my-posh-settings
+winget install JanDeDobbeleer.OhMyPosh -e
 C:\dev\my-posh-settings\install.ps1
 ```
 
@@ -24,16 +28,21 @@ If you cloned to a different path, pass it explicitly:
 
 | Component | What it does |
 | --- | --- |
+| Oh My Posh | Loads `themes/lzong-kali-p10k.omp.json`, a two-line Kali/Powerlevel10k-inspired prompt with OS, user/host, path, git, status, duration, Python, Node, and time |
+| PSReadLine | Emacs editing, duplicate-aware history, inline history suggestions, menu completion, `Ctrl+U`, `Ctrl+Left/Right`, `Ctrl+Delete`, `Ctrl+R`, `Tab`, and `Shift+Tab` |
 | `dev <subdir>` | `cd C:\dev\<subdir>`, with `Tab` completion sourced from the zoxide DB (frecency-ranked) plus any unseen `C:\dev\*` directories |
 | `z <part-of-path>` | [zoxide](https://github.com/ajeetdsouza/zoxide) smart cd, with `Tab` completion against the zoxide DB |
 | `vi` → `vim` | alias if vim is installed |
+| zsh-style aliases | Git (`g`, `gst`, `gp`, ...), Docker Compose (`dco`, `dup`, ...), Composer/Laravel (`ci`, `art`, ...), `ll`/`la`/`l`, `history`, `myip`, `ports`, `killport`, `mkcd`, `take`, `takegit`, `reload` |
 | PowerToys CommandNotFound | suggests winget package if a command is missing |
-| `kill-orphan-serena` | kills [Serena](https://github.com/oraios/serena) MCP process trees whose `claude.exe` parent is gone — useful after Claude Code crashes |
+| `kill-orphan-serena` | emergency cleanup for [Serena](https://github.com/oraios/serena) MCP process trees whose expected parent is gone |
 
 ## Prerequisites (optional, profile guards each)
 
+- [Oh My Posh](https://ohmyposh.dev/): `winget install JanDeDobbeleer.OhMyPosh -e`
 - [zoxide](https://github.com/ajeetdsouza/zoxide): `winget install ajeetdsouza.zoxide`
 - [PowerToys](https://github.com/microsoft/PowerToys) (for CommandNotFound)
+- [eza](https://github.com/eza-community/eza) (optional richer `ll`/`la`/`l`)
 - [Vim](https://www.vim.org/)
 
 ## Execution policy note
