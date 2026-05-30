@@ -14,36 +14,78 @@ function Test-RunnableApplication {
     Test-Path -LiteralPath $Path -PathType Leaf
 }
 
-function Test-OhMyPoshCommand {
-    param([Parameter(Mandatory)][string]$Path)
-
-    if (-not (Test-RunnableApplication $Path)) {
-        return $false
-    }
-
-    try {
-        $null = & $Path version 2>$null
-        return $LASTEXITCODE -eq 0
-    }
-    catch {
-        return $false
-    }
-}
-
 function Resolve-OhMyPoshCommand {
     $candidatePaths = @(
         (Join-Path $env:LOCALAPPDATA 'Programs\oh-my-posh\bin\oh-my-posh.exe'),
         (Join-Path $env:ProgramFiles 'oh-my-posh\bin\oh-my-posh.exe'),
-        (Get-Command oh-my-posh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path -First 1)
+        (Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\oh-my-posh.exe')
     ) | Where-Object { $_ } | Select-Object -Unique
 
     foreach ($candidatePath in $candidatePaths) {
-        if (Test-OhMyPoshCommand $candidatePath) {
+        if (Test-RunnableApplication $candidatePath) {
             return $candidatePath
         }
     }
 
+    $command = Get-Command oh-my-posh -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($command.Path -and (Test-RunnableApplication $command.Path)) {
+        return $command.Path
+    }
+
     return $null
+}
+
+function Get-MyPoshCachePath {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $cacheRoot = Join-Path $env:LOCALAPPDATA 'my-posh-settings'
+    if (-not (Test-Path -LiteralPath $cacheRoot)) {
+        New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
+    }
+    Join-Path $cacheRoot $Name
+}
+
+function Test-MyPoshCacheFresh {
+    param(
+        [Parameter(Mandatory)][string]$CachePath,
+        [Parameter(Mandatory)][string[]]$SourcePath
+    )
+
+    $cacheItem = Get-Item -LiteralPath $CachePath -ErrorAction SilentlyContinue
+    if (-not $cacheItem) {
+        return $false
+    }
+
+    foreach ($source in $SourcePath) {
+        $sourceItem = Get-Item -LiteralPath $source -ErrorAction SilentlyContinue
+        if (-not $sourceItem -or $sourceItem.LastWriteTimeUtc -gt $cacheItem.LastWriteTimeUtc) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
+function Write-OhMyPoshInitCache {
+    param(
+        [Parameter(Mandatory)][string]$CommandPath,
+        [Parameter(Mandatory)][string]$Shell,
+        [Parameter(Mandatory)][string]$ConfigPath,
+        [Parameter(Mandatory)][string]$CachePath
+    )
+
+    $initOutput = (& $CommandPath init $Shell --config $ConfigPath) -join "`n"
+    $initScriptPath = [regex]::Match($initOutput, "& '([^']+)'").Groups[1].Value
+    if (-not $initScriptPath -or -not (Test-Path -LiteralPath $initScriptPath)) {
+        Set-Content -LiteralPath $CachePath -Value $initOutput -Encoding UTF8
+        return
+    }
+
+    @"
+`$env:POSH_SESSION_ID = [guid]::NewGuid().ToString()
+. '$initScriptPath'
+"@ | Set-Content -LiteralPath $CachePath -Encoding UTF8
 }
 
 function Remove-AliasIfExists {
@@ -57,7 +99,7 @@ function Remove-AliasIfExists {
 
 #region PowerToys CommandNotFound
 #f45873b3-b655-43a6-b217-97c00aa0db58 PowerToys CommandNotFound module
-if (Get-Module -ListAvailable -Name Microsoft.WinGet.CommandNotFound) {
+if ($env:MY_POSH_ENABLE_COMMAND_NOT_FOUND -eq '1' -and (Get-Module -ListAvailable -Name Microsoft.WinGet.CommandNotFound)) {
     Import-Module -Name Microsoft.WinGet.CommandNotFound
 }
 #f45873b3-b655-43a6-b217-97c00aa0db58
@@ -292,8 +334,22 @@ $themePath = Join-Path $MyPoshSettingsRoot 'themes\lzong-p10k.omp.json'
 $ohMyPoshCommand = Resolve-OhMyPoshCommand
 if ($ohMyPoshCommand -and (Test-Path $themePath)) {
     $ompShell = if ($PSVersionTable.PSEdition -eq 'Desktop') { 'powershell' } else { 'pwsh' }
-    & $ohMyPoshCommand init $ompShell --config $themePath | Invoke-Expression
-    $myPoshPromptInitialized = $true
+    $ompCachePath = Get-MyPoshCachePath "oh-my-posh-init-$ompShell.ps1"
+    try {
+        if (-not (Test-MyPoshCacheFresh -CachePath $ompCachePath -SourcePath @($themePath, $MyInvocation.MyCommand.Path))) {
+            Write-OhMyPoshInitCache -CommandPath $ohMyPoshCommand -Shell $ompShell -ConfigPath $themePath -CachePath $ompCachePath
+        }
+        try {
+            . $ompCachePath
+        } catch {
+            Remove-Item -LiteralPath $ompCachePath -Force -ErrorAction SilentlyContinue
+            Write-OhMyPoshInitCache -CommandPath $ohMyPoshCommand -Shell $ompShell -ConfigPath $themePath -CachePath $ompCachePath
+            . $ompCachePath
+        }
+        $myPoshPromptInitialized = $true
+    } catch {
+        $myPoshPromptInitialized = $false
+    }
 }
 #endregion
 
@@ -304,7 +360,15 @@ if (Test-Command zoxide) {
     if ($myPoshPromptInitialized) {
         $global:__zoxide_hooked = 0
     }
-    Invoke-Expression (& { (zoxide init powershell) -join "`n" })
+    $zoxideCachePath = Get-MyPoshCachePath 'zoxide-init-powershell.ps1'
+    try {
+        if (-not (Test-MyPoshCacheFresh -CachePath $zoxideCachePath -SourcePath @($MyInvocation.MyCommand.Path))) {
+            zoxide init powershell | Set-Content -LiteralPath $zoxideCachePath -Encoding UTF8
+        }
+        . $zoxideCachePath
+    } catch {
+        Invoke-Expression (& { (zoxide init powershell) -join "`n" })
+    }
 
     if ($myPoshPromptInitialized -and (Get-Command __zoxide_hook -ErrorAction SilentlyContinue)) {
         function global:prompt {

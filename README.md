@@ -34,14 +34,14 @@ If you cloned to a different path, pass it explicitly:
 
 | Component | What it does |
 | --- | --- |
-| Oh My Posh | Loads `themes/lzong-p10k.omp.json`, a Powerlevel10k-style prompt ported from `my-zsh-settings/zsh/.p10k.zsh`: left side is OS, directory, and git; right side is status, duration, Python environment, and `at hh:mm:ss AM/PM`. Local `user@host` and direct Node version are intentionally omitted to match the zsh source of truth |
+| Oh My Posh | Loads `themes/lzong-p10k.omp.json`, a Powerlevel10k-style prompt ported from `my-zsh-settings/zsh/.p10k.zsh`: left side is OS, directory, and git; right side is status, duration, Python environment, and `at hh:mm:ss AM/PM`. Local `user@host` and direct Node version are intentionally omitted to match the zsh source of truth. The generated init script is cached under `%LOCALAPPDATA%\my-posh-settings` and refreshed when the profile or theme changes |
 | PSReadLine | Emacs editing, duplicate-aware history, inline history suggestions, menu completion, `Ctrl+U`, `Ctrl+Left/Right`, `Ctrl+Delete`, `Ctrl+R`, `Tab`, and `Shift+Tab` |
 | `dev <subdir>` | `cd C:\dev\<subdir>`, with `Tab` completion sourced from the zoxide DB (frecency-ranked) plus any unseen `C:\dev\*` directories |
-| `z <part-of-path>` | [zoxide](https://github.com/ajeetdsouza/zoxide) smart cd, with `Tab` completion against the zoxide DB. It is initialized after Oh My Posh so its prompt hook keeps recording newly visited directories, including after `reload` |
+| `z <part-of-path>` | [zoxide](https://github.com/ajeetdsouza/zoxide) smart cd, with `Tab` completion against the zoxide DB. It is initialized after Oh My Posh so its prompt hook keeps recording newly visited directories, including after `reload`; its generated init script is also cached under `%LOCALAPPDATA%\my-posh-settings` |
 | `vi` → `vim` | alias if vim is installed |
 | zsh-style aliases | Git (`g`, `gst`, `gp`, ...), Docker Compose (`dco`, `dup`, ...), Composer/Laravel (`ci`, `art`, ...), `ls`/`l`/`ll`/`la` via `eza` when available, `history`, `myip`, `ports`, `killport`, `mkcd`, `take`, `takegit`, `reload` |
 | `eza` resolver | Uses `eza` from `PATH`, or the WinGet package path when Windows Terminal has not picked up PATH changes yet |
-| PowerToys CommandNotFound | suggests winget package if a command is missing |
+| PowerToys CommandNotFound | optional, because importing it costs noticeable startup time. Set `MY_POSH_ENABLE_COMMAND_NOT_FOUND=1` in the user environment to enable winget suggestions for missing commands |
 | `kill-orphan-serena` | emergency cleanup for [Serena](https://github.com/oraios/serena) MCP process trees whose expected parent is gone |
 
 ## Prerequisites (optional, profile guards each)
