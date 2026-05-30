@@ -3,6 +3,16 @@
 
 $MyPoshSettingsRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+$MyPoshAgentFastPath =
+    $env:MY_POSH_AGENT_FAST_PATH -eq '1' -or
+    [bool]$env:CLAUDE_CODE_AGENT_ID
+if ($MyPoshAgentFastPath -and $env:MY_POSH_DISABLE_AGENT_FAST_PATH -ne '1') {
+    function global:prompt {
+        "$($executionContext.SessionState.Path.CurrentLocation) $ "
+    }
+    return
+}
+
 function Test-Command {
     param([Parameter(Mandatory)][string]$Name)
     [bool](Get-Command $Name -ErrorAction SilentlyContinue)
@@ -12,6 +22,34 @@ function Test-RunnableApplication {
     param([Parameter(Mandatory)][string]$Path)
 
     Test-Path -LiteralPath $Path -PathType Leaf
+}
+
+function Resolve-ApplicationCommand {
+    param(
+        [string[]]$CandidatePaths = @(),
+        [string[]]$Names = @()
+    )
+
+    foreach ($candidatePath in ($CandidatePaths | Where-Object { $_ } | Select-Object -Unique)) {
+        if (Test-RunnableApplication $candidatePath) {
+            return $candidatePath
+        }
+    }
+
+    foreach ($name in ($Names | Where-Object { $_ } | Select-Object -Unique)) {
+        $command = Get-Command $name -CommandType Application, ExternalScript -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($command) {
+            if ($command.Path -and (Test-RunnableApplication $command.Path)) {
+                return $command.Path
+            }
+            if ($command.Source) {
+                return $command.Source
+            }
+        }
+    }
+
+    return $null
 }
 
 function Resolve-OhMyPoshCommand {
@@ -34,6 +72,22 @@ function Resolve-OhMyPoshCommand {
     }
 
     return $null
+}
+
+$script:MyPoshZoxideCommand = $null
+$script:MyPoshZoxideResolved = $false
+function Resolve-ZoxideCommand {
+    if ($script:MyPoshZoxideResolved) {
+        return $script:MyPoshZoxideCommand
+    }
+
+    $candidatePaths = @()
+    if ($env:LOCALAPPDATA) {
+        $candidatePaths += Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages\ajeetdsouza.zoxide_Microsoft.Winget.Source_8wekyb3d8bbwe\zoxide.exe'
+    }
+    $script:MyPoshZoxideCommand = Resolve-ApplicationCommand -CandidatePaths $candidatePaths -Names @('zoxide.exe', 'zoxide')
+    $script:MyPoshZoxideResolved = $true
+    return $script:MyPoshZoxideCommand
 }
 
 function Remove-AliasIfExists {
@@ -140,15 +194,24 @@ function gs { git status @args }
 function glog { git log --oneline --graph -20 @args }
 
 $MyPoshPodmanCommand = Join-Path $env:ProgramFiles 'RedHat\Podman\podman.exe'
-function docker {
-    $dockerCommand = Get-Command docker.exe -CommandType Application -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if ($dockerCommand) {
-        & $dockerCommand.Path @args
-        return
+$script:MyPoshDockerCommand = $null
+$script:MyPoshDockerResolved = $false
+function Resolve-DockerCommand {
+    if ($script:MyPoshDockerResolved) {
+        return $script:MyPoshDockerCommand
     }
-    if (Test-Path -LiteralPath $MyPoshPodmanCommand) {
-        & $MyPoshPodmanCommand @args
+
+    $script:MyPoshDockerCommand = Resolve-ApplicationCommand -Names @('docker.exe', 'docker')
+    if (-not $script:MyPoshDockerCommand -and (Test-RunnableApplication $MyPoshPodmanCommand)) {
+        $script:MyPoshDockerCommand = $MyPoshPodmanCommand
+    }
+    $script:MyPoshDockerResolved = $true
+    return $script:MyPoshDockerCommand
+}
+function docker {
+    $dockerCommand = Resolve-DockerCommand
+    if ($dockerCommand) {
+        & $dockerCommand @args
         return
     }
     Write-Error "Neither docker.exe nor podman.exe is available."
@@ -277,8 +340,9 @@ function dev {
 Register-ArgumentCompleter -CommandName dev -ParameterName Subdir -ScriptBlock {
     param($cmd, $param, $word)
     $seen = @{}
-    if (Test-Command zoxide) {
-        zoxide query --list 2>$null |
+    $zoxideCommand = Resolve-ZoxideCommand
+    if ($zoxideCommand) {
+        & $zoxideCommand query --list 2>$null |
             Where-Object { $_ -like 'C:\dev\*' } |
             ForEach-Object { Split-Path $_ -Leaf } |
             ForEach-Object { $seen[$_] = $true; $_ } |
@@ -288,6 +352,32 @@ Register-ArgumentCompleter -CommandName dev -ParameterName Subdir -ScriptBlock {
     Get-ChildItem 'C:\dev' -Directory -ErrorAction SilentlyContinue |
         Where-Object { -not $seen[$_.Name] -and $_.Name -like "*$word*" } |
         ForEach-Object { [System.Management.Automation.CompletionResult]::new($_.Name, $_.Name, 'ParameterValue', $_.FullName) }
+}
+#endregion
+
+#region Lazy external completions
+$script:MyPoshKubectlCompletionLoaded = $false
+function Enable-MyPoshKubectlCompletion {
+    if ($script:MyPoshKubectlCompletionLoaded) {
+        return
+    }
+
+    $kubectlCommand = Resolve-ApplicationCommand -Names @('kubectl.exe', 'kubectl')
+    if (-not $kubectlCommand) {
+        return
+    }
+
+    try {
+        & $kubectlCommand completion powershell 2>$null | Out-String | Invoke-Expression
+        $script:MyPoshKubectlCompletionLoaded = $true
+    } catch {
+        $script:MyPoshKubectlCompletionLoaded = $true
+    }
+}
+
+Register-ArgumentCompleter -Native -CommandName kubectl -ScriptBlock {
+    Enable-MyPoshKubectlCompletion
+    @()
 }
 #endregion
 
@@ -307,13 +397,14 @@ if ($ohMyPoshCommand -and (Test-Path $themePath)) {
 #endregion
 
 #region zoxide (smart cd: `z <part-of-path>`)
-if (Test-Command zoxide) {
+$zoxideCommand = Resolve-ZoxideCommand
+if ($zoxideCommand) {
     # zoxide records visited directories from a prompt hook. Load it after
     # oh-my-posh so it can use the final prompt function as its base.
     if ($myPoshPromptInitialized) {
         $global:__zoxide_hooked = 0
     }
-    Invoke-Expression (& { (zoxide init powershell) -join "`n" })
+    Invoke-Expression (& { (& $zoxideCommand init powershell) -join "`n" })
 
     if ($myPoshPromptInitialized -and (Get-Command __zoxide_hook -ErrorAction SilentlyContinue)) {
         function global:prompt {
@@ -334,7 +425,11 @@ if (Test-Command zoxide) {
     }
     Register-ArgumentCompleter -CommandName z -ParameterName Query -ScriptBlock {
         param($cmd, $param, $word)
-        (zoxide query --list 2>$null) |
+        $zoxideCommand = Resolve-ZoxideCommand
+        if (-not $zoxideCommand) {
+            return
+        }
+        (& $zoxideCommand query --list 2>$null) |
             Where-Object { $_ -like "*$word*" } |
             ForEach-Object {
                 $leaf = Split-Path $_ -Leaf

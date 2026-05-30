@@ -35,15 +35,36 @@ If you cloned to a different path, pass it explicitly:
 | Component | What it does |
 | --- | --- |
 | Oh My Posh | Loads `themes/lzong-p10k.omp.json`, a visual port of `my-zsh-settings/zsh/.p10k.zsh`: two-line prompt, OS / directory / git on the left, status / duration / Python environment / `at hh:mm:ss AM/PM` on the right, Powerlevel10k-style separators, and p10k color indexes so the terminal palette controls the final look. Local `user@host` and direct Node version are intentionally omitted because the zsh source hides default context and comments out direct `node_version` |
-| Prompt performance | Keeps the prompt visually p10k-compatible while avoiding avoidable redraw work: git status is cached briefly per repository and guarded by a timeout; the Python environment segment reads `VIRTUAL_ENV` / `CONDA_DEFAULT_ENV` directly instead of probing `python.exe` on every prompt; startup avoids unnecessary PSReadLine, `vim`, Docker/Podman, and `eza` command scans |
+| Prompt performance | Keeps the prompt visually p10k-compatible while avoiding avoidable redraw work: git status is cached briefly per repository and guarded by a timeout; the Python environment segment reads `VIRTUAL_ENV` / `CONDA_DEFAULT_ENV` directly instead of probing `python.exe` on every prompt; startup avoids unnecessary PSReadLine, `vim`, Docker/Podman, zoxide, and `eza` command scans |
+| Lazy-load parity with zsh | Ports the `my-zsh-settings` fast-path where PowerShell has a clean equivalent: Claude agent sessions, or shells launched with `MY_POSH_AGENT_FAST_PATH=1`, skip the interactive prompt stack; Docker/Podman and zoxide command discovery is cached after first resolution; `kubectl` PowerShell completion is registered as a first-Tab loader instead of running `kubectl completion powershell` during startup. NVM is not ported because nvm-windows is an executable, not a shell function that must be sourced |
 | PSReadLine | Emacs editing, duplicate-aware history, inline history suggestions, menu completion, `Ctrl+U`, `Ctrl+Left/Right`, `Ctrl+Delete`, `Ctrl+R`, `Tab`, and `Shift+Tab` |
 | `dev <subdir>` | `cd C:\dev\<subdir>`, with `Tab` completion sourced from the zoxide DB (frecency-ranked) plus any unseen `C:\dev\*` directories |
-| `z <part-of-path>` | [zoxide](https://github.com/ajeetdsouza/zoxide) smart cd, with `Tab` completion against the zoxide DB. It is initialized after Oh My Posh so its prompt hook keeps recording newly visited directories, including after `reload` |
+| `z <part-of-path>` | [zoxide](https://github.com/ajeetdsouza/zoxide) smart cd, with `Tab` completion against the zoxide DB. It is initialized after Oh My Posh so its prompt hook keeps recording newly visited directories, including after `reload`; command discovery prefers the WinGet path before falling back to `PATH` |
 | `vi` → `vim` | zsh-style alias; resolution is left to the shell when used so startup does not probe `PATH` |
 | zsh-style aliases | Git (`g`, `gst`, `gp`, ...), Docker Compose (`dco`, `dup`, ...), Composer/Laravel (`ci`, `art`, ...), `ls`/`l`/`ll`/`la` via `eza` when available, `history`, `myip`, `ports`, `killport`, `mkcd`, `take`, `takegit`, `reload` |
 | `eza` resolver | Uses the WinGet package path when present, otherwise falls back to `eza` from `PATH` |
 | PowerToys CommandNotFound | optional, because importing it costs noticeable startup time. Set `MY_POSH_ENABLE_COMMAND_NOT_FOUND=1` in the user environment to enable winget suggestions for missing commands |
 | `kill-orphan-serena` | emergency cleanup for [Serena](https://github.com/oraios/serena) MCP process trees whose expected parent is gone |
+
+## Lazy-load notes
+
+The zsh profile keeps startup fast by separating "environment needed by tools"
+from "interactive UI": agents get a small prompt immediately; expensive
+completion providers are loaded only on first use; prompt-time Kubernetes status
+reads a cache instead of running `kubectl`.
+
+PowerShell follows the same rule where it is safe:
+
+- Agent sessions use a minimal prompt and return before Oh My Posh, PSReadLine,
+  zoxide, and completion setup. Set `MY_POSH_DISABLE_AGENT_FAST_PATH=1` to force
+  the full interactive stack.
+- zoxide is still initialized eagerly, matching the zsh source, because its
+  prompt hook is what records newly visited directories.
+- `kubectl` completion is lazy. The first Tab press installs the native
+  PowerShell completer; subsequent completions use the native completer.
+- AWS and Google Cloud SDK completions are not imported at startup. Their CLIs
+  remain normal external commands, and PowerShell does not need the zsh-style
+  shell-function wrapper that `nvm` requires.
 
 ## Prerequisites (optional, profile guards each)
 
