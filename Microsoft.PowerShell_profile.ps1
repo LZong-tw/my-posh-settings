@@ -248,9 +248,33 @@ Register-ArgumentCompleter -CommandName dev -ParameterName Subdir -ScriptBlock {
 }
 #endregion
 
+#region Oh My Posh prompt
+$myPoshPromptInitialized = $false
+$themePath = Join-Path $MyPoshSettingsRoot 'themes\lzong-p10k.omp.json'
+if ((Test-Command oh-my-posh) -and (Test-Path $themePath)) {
+    $ompShell = if ($PSVersionTable.PSEdition -eq 'Desktop') { 'powershell' } else { 'pwsh' }
+    oh-my-posh init $ompShell --config $themePath | Invoke-Expression
+    $myPoshPromptInitialized = $true
+}
+#endregion
+
 #region zoxide (smart cd: `z <part-of-path>`)
 if (Test-Command zoxide) {
+    # zoxide records visited directories from a prompt hook. Load it after
+    # oh-my-posh so it can use the final prompt function as its base.
+    if ($myPoshPromptInitialized) {
+        $global:__zoxide_hooked = 0
+    }
     Invoke-Expression (& { (zoxide init powershell) -join "`n" })
+
+    if ($myPoshPromptInitialized -and (Get-Command __zoxide_hook -ErrorAction SilentlyContinue)) {
+        function global:prompt {
+            $null = __zoxide_hook
+            if ($null -ne $global:__zoxide_prompt_old) {
+                & $global:__zoxide_prompt_old
+            }
+        }
+    }
 
     Remove-Item Alias:z -Force -ErrorAction SilentlyContinue
     function z {
@@ -302,13 +326,5 @@ function kill-orphan-serena {
     }
     foreach ($o in $orphans) { taskkill /T /F /PID $o.ProcessId 2>&1 | Out-Null }
     Write-Host "Killed $($orphans.Count) tree(s)." -ForegroundColor Green
-}
-#endregion
-
-#region Oh My Posh prompt
-$themePath = Join-Path $MyPoshSettingsRoot 'themes\lzong-p10k.omp.json'
-if ((Test-Command oh-my-posh) -and (Test-Path $themePath)) {
-    $ompShell = if ($PSVersionTable.PSEdition -eq 'Desktop') { 'powershell' } else { 'pwsh' }
-    oh-my-posh init $ompShell --config $themePath | Invoke-Expression
 }
 #endregion
