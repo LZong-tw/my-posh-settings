@@ -34,7 +34,7 @@ If you cloned to a different path, pass it explicitly:
 
 | Component | What it does |
 | --- | --- |
-| Oh My Posh | Loads `themes/lzong-p10k.omp.json`, a visual port of `my-zsh-settings/zsh/.p10k.zsh`: two-line framed prompt, OS / directory / git on the left, status / duration / Python environment / `at hh:mm:ss AM/PM` on the right, and Powerlevel10k-style separators and colors. Local `user@host` and direct Node version are intentionally omitted because the zsh source hides default context and comments out direct `node_version` |
+| Oh My Posh | Loads `themes/lzong-p10k.omp.json`, a visual port of `my-zsh-settings/zsh/.p10k.zsh`: two-line prompt, OS / directory / git on the left, status / duration / Python environment / `at hh:mm:ss AM/PM` on the right, Powerlevel10k-style separators, and p10k color indexes so the terminal palette controls the final look. Local `user@host` and direct Node version are intentionally omitted because the zsh source hides default context and comments out direct `node_version` |
 | PSReadLine | Emacs editing, duplicate-aware history, inline history suggestions, menu completion, `Ctrl+U`, `Ctrl+Left/Right`, `Ctrl+Delete`, `Ctrl+R`, `Tab`, and `Shift+Tab` |
 | `dev <subdir>` | `cd C:\dev\<subdir>`, with `Tab` completion sourced from the zoxide DB (frecency-ranked) plus any unseen `C:\dev\*` directories |
 | `z <part-of-path>` | [zoxide](https://github.com/ajeetdsouza/zoxide) smart cd, with `Tab` completion against the zoxide DB. It is initialized after Oh My Posh so its prompt hook keeps recording newly visited directories, including after `reload` |

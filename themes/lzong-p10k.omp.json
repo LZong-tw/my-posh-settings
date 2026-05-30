@@ -3,16 +3,16 @@
   "version": 3,
   "final_space": true,
   "palette": {
-    "black": "#000000",
-    "blue": "#000080",
-    "frame": "#808080",
-    "green": "#008000",
-    "grey": "#808080",
-    "red": "#800000",
-    "white": "#c0c0c0",
-    "yellow": "#808000",
-    "xterm232": "#080808",
-    "xterm254": "#e4e4e4"
+    "black": "0",
+    "blue": "4",
+    "frame": "244",
+    "green": "2",
+    "grey": "8",
+    "red": "1",
+    "white": "7",
+    "yellow": "3",
+    "xterm232": "232",
+    "xterm254": "254"
   },
   "blocks": [
     {
@@ -133,18 +133,6 @@
           "style": "plain",
           "foreground": "p:frame",
           "template": "╰─"
-        }
-      ]
-    },
-    {
-      "type": "prompt",
-      "alignment": "right",
-      "segments": [
-        {
-          "type": "text",
-          "style": "plain",
-          "foreground": "p:frame",
-          "template": "─╯"
         }
       ]
     }
