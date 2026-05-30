@@ -8,6 +8,44 @@ function Test-Command {
     [bool](Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
+function Test-RunnableApplication {
+    param([Parameter(Mandatory)][string]$Path)
+
+    Test-Path -LiteralPath $Path -PathType Leaf
+}
+
+function Test-OhMyPoshCommand {
+    param([Parameter(Mandatory)][string]$Path)
+
+    if (-not (Test-RunnableApplication $Path)) {
+        return $false
+    }
+
+    try {
+        $null = & $Path version 2>$null
+        return $LASTEXITCODE -eq 0
+    }
+    catch {
+        return $false
+    }
+}
+
+function Resolve-OhMyPoshCommand {
+    $candidatePaths = @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\oh-my-posh\bin\oh-my-posh.exe'),
+        (Join-Path $env:ProgramFiles 'oh-my-posh\bin\oh-my-posh.exe'),
+        (Get-Command oh-my-posh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path -First 1)
+    ) | Where-Object { $_ } | Select-Object -Unique
+
+    foreach ($candidatePath in $candidatePaths) {
+        if (Test-OhMyPoshCommand $candidatePath) {
+            return $candidatePath
+        }
+    }
+
+    return $null
+}
+
 function Remove-AliasIfExists {
     param([Parameter(Mandatory)][string[]]$Name)
     foreach ($aliasName in $Name) {
@@ -251,9 +289,10 @@ Register-ArgumentCompleter -CommandName dev -ParameterName Subdir -ScriptBlock {
 #region Oh My Posh prompt
 $myPoshPromptInitialized = $false
 $themePath = Join-Path $MyPoshSettingsRoot 'themes\lzong-p10k.omp.json'
-if ((Test-Command oh-my-posh) -and (Test-Path $themePath)) {
+$ohMyPoshCommand = Resolve-OhMyPoshCommand
+if ($ohMyPoshCommand -and (Test-Path $themePath)) {
     $ompShell = if ($PSVersionTable.PSEdition -eq 'Desktop') { 'powershell' } else { 'pwsh' }
-    oh-my-posh init $ompShell --config $themePath | Invoke-Expression
+    & $ohMyPoshCommand init $ompShell --config $themePath | Invoke-Expression
     $myPoshPromptInitialized = $true
 }
 #endregion
