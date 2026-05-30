@@ -18,8 +18,10 @@ up first. Edit the repo file and changes apply on next shell start — no
 re-install needed.
 
 `-WithDeps` is the PowerShell equivalent of `my-zsh-settings/install.sh
---with-deps`: it asks `winget` to install Oh My Posh, zoxide, eza, Vim, and
-PowerToys. You can omit it if those tools are already installed or you prefer to
+--with-deps`: it asks `winget` to install missing copies of Oh My Posh, zoxide,
+eza, Vim, and PowerToys. Existing packages are left alone instead of being
+upgraded in-place, and the Vim install directory is added to the user `PATH`.
+You can omit `-WithDeps` if those tools are already installed or you prefer to
 manage them yourself.
 
 Set Windows Terminal's profile font face to `MesloLGM Nerd Font Mono` so the
