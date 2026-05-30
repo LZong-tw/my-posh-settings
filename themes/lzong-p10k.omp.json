@@ -3,15 +3,16 @@
   "version": 3,
   "final_space": true,
   "palette": {
-    "black": "#1f2430",
-    "blue": "#4b95e9",
-    "cyan": "#56b6c2",
-    "green": "#59c9a5",
-    "grey": "#6c7086",
-    "orange": "#f07623",
-    "red": "#d81e5b",
-    "white": "#e0def4",
-    "yellow": "#f3ae35"
+    "black": "#000000",
+    "blue": "#000080",
+    "frame": "#808080",
+    "green": "#008000",
+    "grey": "#808080",
+    "red": "#800000",
+    "white": "#c0c0c0",
+    "yellow": "#808000",
+    "xterm232": "#080808",
+    "xterm254": "#e4e4e4"
   },
   "blocks": [
     {
@@ -20,19 +21,25 @@
       "newline": true,
       "segments": [
         {
+          "type": "text",
+          "style": "plain",
+          "foreground": "p:frame",
+          "template": "╭─"
+        },
+        {
           "type": "os",
           "style": "diamond",
-          "foreground": "p:black",
+          "foreground": "p:xterm232",
           "background": "p:white",
-          "leading_diamond": "╭─",
+          "leading_diamond": "",
           "template": " {{ .Icon }} "
         },
         {
           "type": "path",
           "style": "powerline",
           "powerline_symbol": "",
-          "foreground": "p:black",
-          "background": "p:green",
+          "foreground": "p:xterm254",
+          "background": "p:blue",
           "properties": {
             "style": "agnoster_short"
           },
@@ -42,12 +49,11 @@
           "type": "git",
           "style": "powerline",
           "powerline_symbol": "",
-          "foreground": "p:white",
-          "background": "p:orange",
+          "foreground": "p:black",
+          "background": "p:green",
           "background_templates": [
             "{{ if or (.Working.Changed) (.Staging.Changed) }}p:yellow{{ end }}",
             "{{ if and (gt .Ahead 0) (gt .Behind 0) }}p:red{{ end }}",
-            "{{ if gt .Ahead 0 }}p:cyan{{ end }}",
             "{{ if gt .Behind 0 }}p:red{{ end }}"
           ],
           "properties": {
@@ -55,7 +61,7 @@
             "fetch_status": true,
             "fetch_upstream_icon": true
           },
-          "template": " {{ .HEAD }}{{ if .Working.Changed }} ±{{ .Working.String }}{{ end }}{{ if .Staging.Changed }} +{{ .Staging.String }}{{ end }}{{ if gt .StashCount 0 }} ≡{{ .StashCount }}{{ end }} "
+          "template": " {{ .HEAD }}{{ if gt .Behind 0 }} ⇣{{ .Behind }}{{ end }}{{ if gt .Ahead 0 }}{{ if eq .Behind 0 }} {{ end }}⇡{{ .Ahead }}{{ end }}{{ if gt .StashCount 0 }} *{{ .StashCount }}{{ end }}{{ if gt .Staging.Added 0 }} +{{ .Staging.Added }}{{ end }}{{ if gt .Staging.Modified 0 }} +{{ .Staging.Modified }}{{ end }}{{ if gt .Staging.Deleted 0 }} +{{ .Staging.Deleted }}{{ end }}{{ if gt .Staging.Unmerged 0 }} ~{{ .Staging.Unmerged }}{{ end }}{{ if gt .Working.Unmerged 0 }} ~{{ .Working.Unmerged }}{{ end }}{{ if gt .Working.Modified 0 }} !{{ .Working.Modified }}{{ end }}{{ if gt .Working.Deleted 0 }} !{{ .Working.Deleted }}{{ end }}{{ if gt .Working.Added 0 }} !{{ .Working.Added }}{{ end }}{{ if gt .Working.Untracked 0 }} ?{{ .Working.Untracked }}{{ end }} "
         }
       ]
     },
@@ -108,6 +114,12 @@
             "time_format": "03:04:05 PM"
           },
           "template": " at {{ .CurrentDate | date .Format }} "
+        },
+        {
+          "type": "text",
+          "style": "plain",
+          "foreground": "p:frame",
+          "template": "─╮"
         }
       ]
     },
@@ -119,14 +131,26 @@
         {
           "type": "text",
           "style": "plain",
-          "foreground": "p:blue",
+          "foreground": "p:frame",
           "template": "╰─"
+        }
+      ]
+    },
+    {
+      "type": "prompt",
+      "alignment": "right",
+      "segments": [
+        {
+          "type": "text",
+          "style": "plain",
+          "foreground": "p:frame",
+          "template": "─╯"
         }
       ]
     }
   ],
   "secondary_prompt": {
-    "foreground": "p:yellow",
+    "foreground": "p:frame",
     "background": "transparent",
     "template": "├─> "
   }
