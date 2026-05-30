@@ -99,6 +99,17 @@ function Remove-AliasIfExists {
     }
 }
 
+function Get-NaturalSortKey {
+    param([AllowNull()][string]$Value)
+    if ($null -eq $Value) {
+        return ''
+    }
+    [regex]::Replace($Value, '\d+', {
+            param($match)
+            $match.Value.PadLeft(20, '0')
+        })
+}
+
 #region PowerToys CommandNotFound
 #f45873b3-b655-43a6-b217-97c00aa0db58 PowerToys CommandNotFound module
 if ($env:MY_POSH_ENABLE_COMMAND_NOT_FOUND -eq '1' -and (Get-Module -ListAvailable -Name Microsoft.WinGet.CommandNotFound)) {
@@ -142,6 +153,38 @@ if ($psReadLineModule) {
             # Keep profile loading quiet in non-interactive sessions.
         }
     }
+    if ($setOption.Parameters.ContainsKey('Colors')) {
+        $kaliStyleColors = @{
+            Command               = "`e[36m"
+            Keyword               = "`e[36;1m"
+            Parameter             = "`e[32m"
+            Operator              = "`e[34;1m"
+            String                = "`e[33m"
+            Number                = "`e[33m"
+            Variable              = "`e[35;1m"
+            Type                  = "`e[36;1m"
+            Comment               = "`e[30;1m"
+            Error                 = "`e[31;1m"
+            InlinePrediction      = "`e[38;2;153;153;153m"
+            ListPrediction        = "`e[38;2;153;153;153m"
+            ListPredictionTooltip = "`e[38;2;153;153;153m"
+            Selection             = "`e[30;47m"
+        }
+        try {
+            Set-PSReadLineOption -Colors $kaliStyleColors
+        } catch {
+            try {
+                Set-PSReadLineOption -Colors @{
+                    Command          = "`e[36m"
+                    Parameter        = "`e[32m"
+                    String           = "`e[33m"
+                    InlinePrediction = "`e[38;2;153;153;153m"
+                }
+            } catch {
+                # Older PSReadLine builds may not support every color token.
+            }
+        }
+    }
 
     $keyBindings = @(
         @('Ctrl+u', 'BackwardDeleteLine'),
@@ -154,6 +197,8 @@ if ($psReadLineModule) {
         @('Ctrl+r', 'ReverseSearchHistory'),
         @('Shift+Tab', 'MenuComplete'),
         @('Tab', 'MenuComplete'),
+        @('PageUp', 'BeginningOfHistory'),
+        @('PageDown', 'EndOfHistory'),
         @('Ctrl+z', 'Undo')
     )
     foreach ($binding in $keyBindings) {
@@ -351,6 +396,7 @@ Register-ArgumentCompleter -CommandName dev -ParameterName Subdir -ScriptBlock {
     }
     Get-ChildItem 'C:\dev' -Directory -ErrorAction SilentlyContinue |
         Where-Object { -not $seen[$_.Name] -and $_.Name -like "*$word*" } |
+        Sort-Object { Get-NaturalSortKey $_.Name } |
         ForEach-Object { [System.Management.Automation.CompletionResult]::new($_.Name, $_.Name, 'ParameterValue', $_.FullName) }
 }
 #endregion
@@ -385,7 +431,7 @@ Register-ArgumentCompleter -Native -CommandName kubectl -ScriptBlock {
 $myPoshPromptInitialized = $false
 $themePath = Join-Path $MyPoshSettingsRoot 'themes\lzong-p10k.omp.json'
 $ohMyPoshCommand = Resolve-OhMyPoshCommand
-if ($ohMyPoshCommand -and (Test-Path $themePath)) {
+if ($env:MY_POSH_DISABLE_OMP -ne '1' -and $ohMyPoshCommand -and (Test-Path $themePath)) {
     $ompShell = if ($PSVersionTable.PSEdition -eq 'Desktop') { 'powershell' } else { 'pwsh' }
     try {
         & $ohMyPoshCommand init $ompShell --config $themePath | Invoke-Expression
@@ -393,6 +439,63 @@ if ($ohMyPoshCommand -and (Test-Path $themePath)) {
     } catch {
         $myPoshPromptInitialized = $false
     }
+}
+
+function Initialize-MyPoshFallbackPrompt {
+    $global:MyPoshPromptAlternative = if ($env:MY_POSH_PROMPT_ALTERNATIVE) { $env:MY_POSH_PROMPT_ALTERNATIVE } else { 'twoline' }
+    $script:MyPoshPromptRenderedOnce = $false
+    $script:MyPoshFallbackPromptEnabled = $true
+
+    function global:Toggle-MyPoshFallbackPrompt {
+        if (-not $script:MyPoshFallbackPromptEnabled) {
+            return
+        }
+        if ($global:MyPoshPromptAlternative -eq 'oneline') {
+            $global:MyPoshPromptAlternative = 'twoline'
+        } else {
+            $global:MyPoshPromptAlternative = 'oneline'
+        }
+    }
+
+    function global:prompt {
+        $path = $executionContext.SessionState.Path.CurrentLocation
+        $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+        $isAdmin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        $symbol = if ($isAdmin) { '#' } else { '$' }
+        $user = if ($env:USERNAME) { $env:USERNAME } else { 'user' }
+        $hostName = if ($env:COMPUTERNAME) { $env:COMPUTERNAME } else { [Environment]::MachineName }
+        $venv = if ($env:VIRTUAL_ENV) { "($(Split-Path $env:VIRTUAL_ENV -Leaf))-" } else { '' }
+        $topLeft = [char]0x250c
+        $bottomLeft = [char]0x2514
+        $horizontal = [char]0x2500
+        $kaliSymbol = [char]0x327f
+
+        if ($global:MyPoshPromptAlternative -eq 'oneline') {
+            return "${venv}${user}@${hostName}:$path$symbol "
+        }
+
+        $prefix = if ($script:MyPoshPromptRenderedOnce) { "`n" } else { '' }
+        $script:MyPoshPromptRenderedOnce = $true
+        return "${prefix}${topLeft}${horizontal}${horizontal}${venv}(${user}${kaliSymbol}${hostName})-[$path]`n${bottomLeft}${horizontal}$symbol "
+    }
+
+    if ($psReadLineModule) {
+        try {
+            Set-PSReadLineKeyHandler -Chord 'Ctrl+p' -ScriptBlock {
+                Toggle-MyPoshFallbackPrompt
+                [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+            }
+        } catch {
+            # Prompt fallback still works without the toggle binding.
+        }
+    }
+
+    return $true
+}
+
+if (-not $myPoshPromptInitialized -and $env:MY_POSH_DISABLE_FALLBACK_PROMPT -ne '1') {
+    $myPoshPromptInitialized = Initialize-MyPoshFallbackPrompt
 }
 #endregion
 

@@ -4,8 +4,37 @@
 
 [CmdletBinding()]
 param(
-    [string]$RepoRoot = $PSScriptRoot
+    [string]$RepoRoot = $PSScriptRoot,
+    [switch]$WithDeps
 )
+
+function Install-WingetPackage {
+    param(
+        [Parameter(Mandatory)][string]$Id,
+        [Parameter(Mandatory)][string]$Name
+    )
+
+    $winget = Get-Command winget -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if (-not $winget) {
+        Write-Host "[skip] winget not found; install $Name manually ($Id)." -ForegroundColor DarkYellow
+        return
+    }
+
+    Write-Host "[deps] $Name ($Id)" -ForegroundColor Cyan
+    & $winget.Source install --id $Id -e --accept-package-agreements --accept-source-agreements
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[warn] winget could not install $Name; continuing." -ForegroundColor DarkYellow
+    }
+}
+
+if ($WithDeps) {
+    Install-WingetPackage -Id 'JanDeDobbeleer.OhMyPosh' -Name 'Oh My Posh'
+    Install-WingetPackage -Id 'ajeetdsouza.zoxide' -Name 'zoxide'
+    Install-WingetPackage -Id 'eza-community.eza' -Name 'eza'
+    Install-WingetPackage -Id 'vim.vim' -Name 'Vim'
+    Install-WingetPackage -Id 'Microsoft.PowerToys' -Name 'PowerToys'
+}
 
 $shared = Join-Path $RepoRoot 'Microsoft.PowerShell_profile.ps1'
 if (-not (Test-Path $shared)) {
