@@ -51,6 +51,11 @@
           "powerline_symbol": "",
           "foreground": "p:black",
           "background": "p:green",
+          "cache": {
+            "duration": "2s",
+            "strategy": "folder"
+          },
+          "timeout": 750,
           "background_templates": [
             "{{ if or (.Working.Changed) (.Staging.Changed) }}p:yellow{{ end }}",
             "{{ if and (gt .Ahead 0) (gt .Behind 0) }}p:red{{ end }}",
@@ -92,16 +97,12 @@
           "template": " took {{ .FormattedMs }} "
         },
         {
-          "type": "python",
+          "type": "text",
           "style": "diamond",
           "leading_diamond": "",
           "foreground": "p:black",
           "background": "p:blue",
-          "properties": {
-            "display_mode": "environment",
-            "fetch_version": false
-          },
-          "template": "{{ if .Venv }} {{ .Venv }} {{ end }}"
+          "template": "{{ if .Env.VIRTUAL_ENV }} {{ osBase .Env.VIRTUAL_ENV }} {{ else if .Env.CONDA_DEFAULT_ENV }} {{ .Env.CONDA_DEFAULT_ENV }} {{ end }}"
         },
         {
           "type": "time",

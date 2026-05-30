@@ -54,8 +54,16 @@ if ($env:MY_POSH_ENABLE_COMMAND_NOT_FOUND -eq '1' -and (Get-Module -ListAvailabl
 #endregion
 
 #region PSReadLine — zsh/Kali-style editing
-if (Get-Module -ListAvailable -Name PSReadLine) {
-    Import-Module PSReadLine
+$psReadLineModule = Get-Module -Name PSReadLine
+if (-not $psReadLineModule -and [Environment]::UserInteractive -and $Host.Name -eq 'ConsoleHost') {
+    try {
+        Import-Module PSReadLine -ErrorAction Stop
+        $psReadLineModule = Get-Module -Name PSReadLine
+    } catch {
+        $psReadLineModule = $null
+    }
+}
+if ($psReadLineModule) {
 
     $psReadLineOptions = @{
         EditMode            = 'Emacs'
@@ -107,9 +115,7 @@ if (Get-Module -ListAvailable -Name PSReadLine) {
 #region Aliases and zsh-style helpers
 Remove-AliasIfExists -Name history, gs, ci, ls
 
-if (Test-Command vim) {
-    Set-Alias vi vim
-}
+Set-Alias vi vim -ErrorAction SilentlyContinue
 
 function history {
     param([int]$Count = 0)
@@ -133,6 +139,20 @@ function gst { git status @args }
 function gs { git status @args }
 function glog { git log --oneline --graph -20 @args }
 
+$MyPoshPodmanCommand = Join-Path $env:ProgramFiles 'RedHat\Podman\podman.exe'
+function docker {
+    $dockerCommand = Get-Command docker.exe -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($dockerCommand) {
+        & $dockerCommand.Path @args
+        return
+    }
+    if (Test-Path -LiteralPath $MyPoshPodmanCommand) {
+        & $MyPoshPodmanCommand @args
+        return
+    }
+    Write-Error "Neither docker.exe nor podman.exe is available."
+}
 function d { docker @args }
 function dco { docker compose @args }
 function dcb { docker compose build @args }
@@ -142,9 +162,6 @@ function dlogs { docker compose logs -f @args }
 function dps { docker compose ps @args }
 function dup { docker compose up -d @args }
 function dc { docker compose @args }
-if (-not (Test-Command docker) -and (Test-Command podman)) {
-    function docker { podman @args }
-}
 
 function c { composer @args }
 function ci { composer install @args }
@@ -155,6 +172,11 @@ function pa { php artisan @args }
 function mfs { php artisan migrate:fresh --seed @args }
 
 function Resolve-EzaCommand {
+    $wingetEza = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages\eza-community.eza_Microsoft.Winget.Source_8wekyb3d8bbwe\eza.exe'
+    if (Test-Path $wingetEza) {
+        return $wingetEza
+    }
+
     $command = Get-Command eza -CommandType Application, ExternalScript -ErrorAction SilentlyContinue |
         Select-Object -First 1
     if ($command) {
@@ -164,19 +186,12 @@ function Resolve-EzaCommand {
         return $command.Source
     }
 
-    $wingetEza = Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages\eza-community.eza_Microsoft.Winget.Source_8wekyb3d8bbwe\eza.exe'
-    if (Test-Path $wingetEza) {
-        return $wingetEza
-    }
-
     return $null
 }
 
 $MyPoshEzaCommand = Resolve-EzaCommand
 if ($MyPoshEzaCommand) {
-    if (-not (Test-Command eza)) {
-        function eza { & $MyPoshEzaCommand @args }
-    }
+    function eza { & $MyPoshEzaCommand @args }
     function ls { & $MyPoshEzaCommand --icons --git @args }
     function l { & $MyPoshEzaCommand --icons --git @args }
     function ll { & $MyPoshEzaCommand -l --icons --git @args }
