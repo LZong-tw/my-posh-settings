@@ -8,6 +8,7 @@
     "frame": "#4C566A",
     "green": "108",
     "grey": "#434C5E",
+    "panel": "#3B4252",
     "red": "131",
     "white": "#ECEFF4",
     "yellow": "220",
@@ -79,7 +80,7 @@
           "style": "diamond",
           "leading_diamond": "",
           "foreground": "p:green",
-          "background": "p:black",
+          "background": "p:panel",
           "properties": {
             "always_enabled": true
           },
