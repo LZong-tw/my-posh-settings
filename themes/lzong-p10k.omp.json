@@ -3,16 +3,16 @@
   "version": 3,
   "final_space": true,
   "palette": {
-    "black": "0",
-    "blue": "4",
-    "frame": "244",
-    "green": "2",
-    "grey": "8",
-    "red": "1",
-    "white": "7",
-    "yellow": "3",
-    "xterm232": "232",
-    "xterm254": "254"
+    "black": "16",
+    "blue": "68",
+    "frame": "#4C566A",
+    "green": "108",
+    "grey": "#434C5E",
+    "red": "131",
+    "white": "#ECEFF4",
+    "yellow": "220",
+    "xterm232": "16",
+    "xterm254": "#ECEFF4"
   },
   "blocks": [
     {
