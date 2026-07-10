@@ -578,7 +578,7 @@ function kill-orphan-serena {
 #region Claude Code Router, Serena, and Headroom Custom Shortcuts
 # Serena HTTP Singleton shortcuts.
 function serena-status {
-    node "C:\Users\LZong\.serena\http-singleton\serena-http-singleton.mjs" status --project "C:\dev\sugar-dating" --port 9127
+    node "$HOME\.serena\http-singleton\serena-http-singleton.mjs" status --project "C:\dev\sugar-dating" --port 9127
 }
 
 function serena-usage {
@@ -588,11 +588,11 @@ function serena-usage {
     )
 
     if ($Top) {
-        node "C:\Users\LZong\.serena\http-singleton\serena-http-singleton.mjs" usage --project "C:\dev\sugar-dating" --port 9127 --top
+        node "$HOME\.serena\http-singleton\serena-http-singleton.mjs" usage --project "C:\dev\sugar-dating" --port 9127 --top
         return
     }
 
-    node "C:\Users\LZong\.serena\http-singleton\serena-http-singleton.mjs" usage --project "C:\dev\sugar-dating" --port 9127 --last $Last
+    node "$HOME\.serena\http-singleton\serena-http-singleton.mjs" usage --project "C:\dev\sugar-dating" --port 9127 --last $Last
 }
 
 # headroom: `hc`=壓縮版 Claude Code(埠8787)/ `hcx`=壓縮版 Codex(埠8788)。原本的 claude/codex 不動,壞掉跑原指令當 fallback。
