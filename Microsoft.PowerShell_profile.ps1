@@ -595,30 +595,30 @@ function serena-usage {
     node "$HOME\.serena\http-singleton\serena-http-singleton.mjs" usage --project "C:\dev\sugar-dating" --port 9127 --last $Last
 }
 
-# headroom: `hc`=壓縮版 Claude Code(埠8787)/ `hcx`=壓縮版 Codex(埠8788)。原本的 claude/codex 不動,壞掉跑原指令當 fallback。
-# PYTHONUTF8=1: headroom read_text() 沒指定編碼,繁中 Windows 預設 cp950 會把 UTF-8 的 CLAUDE.md/AGENTS.md 解碼炸掉
-# --no-serena: 擋掉自動註冊 Serena(保護 pin 的設定) / --no-rtk: 不注入 headroom 自己的 rtk(已有自己的 RTK,也避開 cp950 crash 跟 10s timeout)
-# 多開:同型(多個 hc 或多個 hcx)會自動重用同埠的既有 proxy(--no-proxy);claude 與 codex 分屬不同埠所以可並存。
-#       想再開獨立一顆 proxy 就自己指埠:hc -p 8790 / hcx -p 8791
+# headroom: `hc` = compressed Claude Code (port 8787) / `hcx` = compressed Codex (port 8788). Keep original claude/codex intact, fallback to raw command if broken.
+# PYTHONUTF8=1: headroom's read_text() doesn't specify encoding; traditional Chinese Windows default CP950 would corrupt UTF-8 CLAUDE.md/AGENTS.md.
+# --no-serena: prevent auto-registration of Serena (preserves pinned settings) / --no-rtk: bypass headroom's own rtk (we have our own, avoids cp950 crash and 10s timeout).
+# Multiple instances: same-type instances (multiple hc or hcx) automatically reuse existing proxy on same port (--no-proxy); claude and codex use different ports so they coexist.
+# To launch a separate proxy, specify the port manually: hc -p 8790 / hcx -p 8791
 function hc {
     $env:PYTHONUTF8 = '1'
-    # --- 穩定性鈕(2026-06-22):headroom 在 Claude Code 上實測省 0 token(全 cache 命中),
-    #     但 proxy 偶爾被 memory/embedding 卡住 event loop 就會讓 client 報「API Connection Timeout」。
-    #     以下不關 memory、只把容忍度調高,降低 timeout 機率。
-    $env:API_TIMEOUT_MS = '600000'                   # Claude Code 端:proxy 慢一下不要直接判死(10 分鐘)
-    $env:HEADROOM_CONNECT_TIMEOUT_SECONDS = '30'     # proxy connect+pool 容忍度(預設 10s;多 session 共用一顆 proxy 易撞滿)
-    $env:HEADROOM_SKIP_UPSTREAM_CHECK = '1'          # 跳過 readyz 對上游的探測,少一個 stall 源
-    $env:HEADROOM_DISABLE_KOMPRESS = '1'             # 已知 Kompress 會燒 CPU([[project_headroom_kompress_storm]])
+    # --- Stability tweak (2026-06-22): headroom on Claude Code saves 0 tokens on full cache hit,
+    #     but proxy event loop stalls on heavy memory/embedding operations, leading to client "API Connection Timeout".
+    #     We keep memory enabled but increase tolerances to minimize timeout occurrences.
+    $env:API_TIMEOUT_MS = '600000'                   # Claude Code client: don't fail fast on slow proxy (10 mins)
+    $env:HEADROOM_CONNECT_TIMEOUT_SECONDS = '30'     # proxy connect+pool tolerance (default 10s; shared proxy pools saturate easily)
+    $env:HEADROOM_SKIP_UPSTREAM_CHECK = '1'          # bypass upstream readyz probe to eliminate a common stall source
+    $env:HEADROOM_DISABLE_KOMPRESS = '1'             # Kompress causes CPU spikes ([[project_headroom_kompress_storm]])
     $port = 8787
     $a = @('wrap','claude','--memory','--no-serena','--no-rtk','-p',$port)
     if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) { $a += '--no-proxy' }
     headroom @a @args
 }
 
-# claude-sakana: Claude Code Router(CCR)+ Sakana Fugu API 的一鍵啟動。
-# CCR 用獨立 CLAUDE_CONFIG_DIR(profiles/default-claude-code/claude)存放帳密,不會動到原生 claude 的 ~/.claude.json/.credentials.json;
-# 但 projects/、plugins/ 是 junction、CLAUDE.md/RTK.md/gotchas.md 是 hardlink 指回 ~/.claude,對話紀錄、memory、hooks、permissions 共用。
-# `ccr start` 本身是 idempotent(已在跑會直接回報 pid),每次都呼叫一次確保 gateway 活著,不用自己判斷 port。
+# claude-sakana: One-click launcher for Claude Code Router (CCR) + Sakana Fugu API.
+# CCR uses a separate CLAUDE_CONFIG_DIR (profiles/default-claude-code/claude) to store credentials, avoiding touching native claude's ~/.claude.json/~/.credentials.json.
+# Note: projects/ and plugins/ are junctions, while CLAUDE.md/RTK.md/gotchas.md are hardlinks pointing back to ~/.claude; session history, memory, hooks, and permissions are shared.
+# `ccr start` is idempotent (directly returns pid if already running); calling it every time ensures the gateway is alive without needing to manually inspect ports.
 function claude-sakana {
     ccr start --no-open | Out-Null
     ccr default-claude-code cli -- @args
