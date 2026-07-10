@@ -96,7 +96,14 @@ PowerShell follows the same rule where it is safe:
 
 - [Oh My Posh](https://ohmyposh.dev/): `winget install JanDeDobbeleer.OhMyPosh -e`
 - Meslo Nerd Font for prompt glyphs: `oh-my-posh font install Meslo --headless`
-- Windows Terminal profile font face: `MesloLGM Nerd Font Mono`
+  (if this exits non-zero — e.g. `70` — without installing, download the font
+  directly instead: grab `Meslo.zip` from the
+  [Nerd Fonts release](https://github.com/ryanoasis/nerd-fonts/releases/latest),
+  then install the `MesloLGM*NerdFontMono` `.ttf` files for the current user)
+- Windows Terminal profile font face: `MesloLGM Nerd Font Mono` — installing the
+  font is not enough; the terminal keeps its default font until you point its
+  profile at the Nerd Font, and Windows Terminal only re-reads the setting on a
+  full restart (not a new tab)
 - [zoxide](https://github.com/ajeetdsouza/zoxide): `winget install ajeetdsouza.zoxide`
 - [PowerToys](https://github.com/microsoft/PowerToys) (for CommandNotFound)
 - [eza](https://github.com/eza-community/eza): `winget install eza-community.eza -e` (optional richer `ls`/`l`/`ll`/`la`)
