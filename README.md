@@ -50,6 +50,7 @@ If you cloned to a different path, pass it explicitly:
 | `eza` resolver | Uses the WinGet package path when present, otherwise falls back to `eza` from `PATH` |
 | PowerToys CommandNotFound | optional, because importing it costs noticeable startup time. Set `MY_POSH_ENABLE_COMMAND_NOT_FOUND=1` in the user environment to enable winget suggestions for missing commands |
 | `kill-orphan-serena` | emergency cleanup for [Serena](https://github.com/oraios/serena) MCP process trees whose expected parent is gone |
+| `claude-sakana` | launches Claude Code through Claude Code Router (CCR). The function — not the npm `ccr.cmd` shim, which every `npm i -g` regenerates — preloads the CCR client-abort crash guard (`%APPDATA%\claude-code-router\ccr-client-abort-guard.cjs`, forward-slash path because node's `NODE_OPTIONS` parser eats backslashes inside quotes) and sets `CCR_RAW_TRACE_ENABLED=1` (the real raw-trace switch; `gateway.config.json` is regenerated from `config.sqlite` + env on every server start, so editing that file is futile). Both env vars are scoped to `ccr start` and restored afterward so they never leak into the claude CLI process. Root-cause audit: sugar-dating `docs/agent-context/ccr-router-audit-2026-07-17.md` |
 
 ## Kali features synced from my-zsh-settings
 
