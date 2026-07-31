@@ -271,6 +271,37 @@ function dps { docker compose ps @args }
 function dup { docker compose up -d @args }
 function dc { docker compose @args }
 
+# Grok CLI also ships agent.exe and prepends ~/.grok/bin to PATH, which steals `agent`
+# from Cursor Agent. Prefer Cursor explicitly; use `grok` for the Grok CLI.
+$script:MyPoshCursorAgentCommand = $null
+$script:MyPoshCursorAgentResolved = $false
+function Resolve-CursorAgentCommand {
+    if ($script:MyPoshCursorAgentResolved) {
+        return $script:MyPoshCursorAgentCommand
+    }
+
+    $candidatePaths = @()
+    if ($env:LOCALAPPDATA) {
+        $candidatePaths += Join-Path $env:LOCALAPPDATA 'cursor-agent\agent.cmd'
+        $candidatePaths += Join-Path $env:LOCALAPPDATA 'cursor-agent\cursor-agent.cmd'
+        $candidatePaths += Join-Path $env:LOCALAPPDATA 'cursor-agent\agent.ps1'
+    }
+    $script:MyPoshCursorAgentCommand = Resolve-ApplicationCommand `
+        -CandidatePaths $candidatePaths `
+        -Names @('cursor-agent.cmd', 'cursor-agent')
+    $script:MyPoshCursorAgentResolved = $true
+    return $script:MyPoshCursorAgentCommand
+}
+Remove-AliasIfExists -Name agent
+function agent {
+    $cursorAgent = Resolve-CursorAgentCommand
+    if ($cursorAgent) {
+        & $cursorAgent @args
+        return
+    }
+    Write-Error "Cursor Agent not found. Install with: irm 'https://cursor.com/install?win32=true' | iex"
+}
+
 function c { composer @args }
 function ci { composer install @args }
 function cu { composer update @args }
