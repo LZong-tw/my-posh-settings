@@ -273,23 +273,51 @@ function dc { docker compose @args }
 
 # Grok CLI also ships agent.exe and prepends ~/.grok/bin to PATH, which steals `agent`
 # from Cursor Agent. Prefer Cursor explicitly; use `grok` for the Grok CLI.
+#
+# Notes:
+# - Do not permanently cache a negative resolve: install-in-same-session (or a WT tab
+#   born before install finished) must pick up agent.cmd/ps1 on the next call.
+# - Prefer *.ps1 over *.cmd so PowerShell 7 does not bounce through Windows PowerShell 5.1.
 $script:MyPoshCursorAgentCommand = $null
 $script:MyPoshCursorAgentResolved = $false
 function Resolve-CursorAgentCommand {
-    if ($script:MyPoshCursorAgentResolved) {
-        return $script:MyPoshCursorAgentCommand
+    if ($script:MyPoshCursorAgentResolved -and $script:MyPoshCursorAgentCommand) {
+        if (Test-RunnableApplication $script:MyPoshCursorAgentCommand) {
+            return $script:MyPoshCursorAgentCommand
+        }
+        # Stale path (uninstalled / moved) — resolve again.
+        $script:MyPoshCursorAgentCommand = $null
+        $script:MyPoshCursorAgentResolved = $false
     }
 
     $candidatePaths = @()
     if ($env:LOCALAPPDATA) {
-        $candidatePaths += Join-Path $env:LOCALAPPDATA 'cursor-agent\agent.cmd'
-        $candidatePaths += Join-Path $env:LOCALAPPDATA 'cursor-agent\cursor-agent.cmd'
-        $candidatePaths += Join-Path $env:LOCALAPPDATA 'cursor-agent\agent.ps1'
+        $cursorAgentRoot = Join-Path $env:LOCALAPPDATA 'cursor-agent'
+        $candidatePaths += Join-Path $cursorAgentRoot 'agent.ps1'
+        $candidatePaths += Join-Path $cursorAgentRoot 'cursor-agent.ps1'
+        $candidatePaths += Join-Path $cursorAgentRoot 'agent.cmd'
+        $candidatePaths += Join-Path $cursorAgentRoot 'cursor-agent.cmd'
     }
-    $script:MyPoshCursorAgentCommand = Resolve-ApplicationCommand `
+    if ($env:USERPROFILE) {
+        $localBin = Join-Path $env:USERPROFILE '.local\bin'
+        $candidatePaths += Join-Path $localBin 'agent.ps1'
+        $candidatePaths += Join-Path $localBin 'cursor-agent.ps1'
+        $candidatePaths += Join-Path $localBin 'agent.cmd'
+        $candidatePaths += Join-Path $localBin 'cursor-agent.cmd'
+    }
+
+    $resolved = Resolve-ApplicationCommand `
         -CandidatePaths $candidatePaths `
         -Names @('cursor-agent.cmd', 'cursor-agent')
-    $script:MyPoshCursorAgentResolved = $true
+
+    # Never accept Grok's agent.exe even if PATH lookup races with our function name.
+    if ($resolved -and ($resolved -match '[\\/]\.grok[\\/]bin[\\/]agent(\.exe)?$')) {
+        $resolved = $null
+    }
+
+    $script:MyPoshCursorAgentCommand = $resolved
+    # Only cache positives; keep retrying while missing so a later install works in-session.
+    $script:MyPoshCursorAgentResolved = [bool]$resolved
     return $script:MyPoshCursorAgentCommand
 }
 Remove-AliasIfExists -Name agent
@@ -299,7 +327,17 @@ function agent {
         & $cursorAgent @args
         return
     }
-    Write-Error "Cursor Agent not found. Install with: irm 'https://cursor.com/install?win32=true' | iex"
+
+    $expected = if ($env:LOCALAPPDATA) {
+        Join-Path $env:LOCALAPPDATA 'cursor-agent\agent.ps1'
+    } else {
+        '%LOCALAPPDATA%\cursor-agent\agent.ps1'
+    }
+    Write-Error @"
+Cursor Agent not found (expected: $expected).
+Install: irm 'https://cursor.com/install?win32=true' | iex
+Then either open a new terminal, or reload profile: . `$PROFILE
+"@
 }
 
 function c { composer @args }
