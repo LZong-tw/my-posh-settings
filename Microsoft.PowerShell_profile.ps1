@@ -348,13 +348,6 @@ function claude-px {
         Write-Error 'pxpipe not found. Install: npm i -g pxpipe-proxy'
         return
     }
-    $claudeExe = Get-Command claude -CommandType Application -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if (-not $claudeExe) {
-        Write-Error 'claude.exe not found on PATH.'
-        return
-    }
-
     # Without the proxy, warp still starts but every request fails.
     $tcp = [System.Net.Sockets.TcpClient]::new()
     try { $up = $tcp.ConnectAsync('127.0.0.1', 47821).Wait(500) } catch { $up = $false } finally { $tcp.Dispose() }
@@ -363,14 +356,12 @@ function claude-px {
         return
     }
 
-    # pxpipe <= 0.13.2 cannot resolve bare `claude` or backslash paths on Windows
-    # (teamchong/pxpipe#294); a forward-slash absolute path works everywhere.
-    $claudePath = $claudeExe.Source -replace '\\', '/'
+    # Bare `claude` needs pxpipe >= 0.14.0 (teamchong/pxpipe#294).
     $prevBaseUrl = $env:ANTHROPIC_BASE_URL
     $env:ANTHROPIC_BASE_URL = $null
     try {
         # Quoted: PowerShell swallows a bare `--` before it reaches pxpipe.ps1.
-        pxpipe warp '--' $claudePath @args
+        pxpipe warp '--' claude @args
     } finally {
         $env:ANTHROPIC_BASE_URL = $prevBaseUrl
     }
