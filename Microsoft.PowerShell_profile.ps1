@@ -343,18 +343,55 @@ Then either open a new terminal, or reload profile: . `$PROFILE
 # Claude Code through the always-on pxpipe proxy (task-win-pxpipe-proxy.vbs, :47821).
 # `pxpipe warp` diverts only /v1/messages, so /remote-control and claude.ai
 # connectors keep working; they switch off whenever ANTHROPIC_BASE_URL is set.
+function Test-PxpipeProxy {
+    $tcp = [System.Net.Sockets.TcpClient]::new()
+    try { $tcp.ConnectAsync('127.0.0.1', 47821).Wait(500) } catch { $false } finally { $tcp.Dispose() }
+}
+
+# The proxy keeps running the code it started with, so an npm upgrade only takes
+# effect after a restart. Restart only when nobody is connected: a restart drops
+# whatever request another session has in flight.
+function Update-PxpipeProxyIfIdle {
+    $pkg = Join-Path (Split-Path (Get-Command pxpipe).Source) 'node_modules\pxpipe-proxy\package.json'
+    $listen = Get-NetTCPConnection -LocalPort 47821 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $listen -or -not (Test-Path $pkg)) { return }
+    $proc = Get-Process -Id $listen.OwningProcess -ErrorAction SilentlyContinue
+    if (-not $proc -or $proc.StartTime -gt (Get-Item $pkg).LastWriteTime) { return }
+    if (Get-NetTCPConnection -LocalPort 47821 -State Established -ErrorAction SilentlyContinue) {
+        Write-Host '[claude-px] pxpipe update installed; proxy busy, restart deferred.' -ForegroundColor DarkYellow
+        return
+    }
+    Write-Host '[claude-px] restarting pxpipe proxy onto the new version...' -ForegroundColor Cyan
+    Stop-Process -Id $proc.Id -Force
+    # The logon task's wscript exits with node; starting it again keeps supervision.
+    $deadline = (Get-Date).AddSeconds(10)
+    while ((Get-ScheduledTask WinPxpipeProxy).State -eq 'Running' -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 200 }
+    Start-ScheduledTask WinPxpipeProxy
+    # The launcher runs npm before node, so allow it time.
+    $deadline = (Get-Date).AddSeconds(45)
+    while (-not (Test-PxpipeProxy) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
+}
+
+# Upgrade in the background so launch never waits on npm; the next claude-px
+# picks it up (and restarts the proxy if idle).
+function Start-PxpipeBackgroundUpdate {
+    $cmd = '$v = npm view pxpipe-proxy version 2>$null; if ($v -and $v -ne (pxpipe --version)) { npm i -g pxpipe-proxy@latest --no-audit --no-fund }'
+    Start-Process pwsh -WindowStyle Hidden -RedirectStandardOutput (Join-Path $env:TEMP 'pxpipe-update.log') `
+        -ArgumentList '-NoProfile', '-Command', $cmd
+}
+
 function claude-px {
     if (-not (Get-Command pxpipe -ErrorAction SilentlyContinue)) {
         Write-Error 'pxpipe not found. Install: npm i -g pxpipe-proxy'
         return
     }
+    Update-PxpipeProxyIfIdle
     # Without the proxy, warp still starts but every request fails.
-    $tcp = [System.Net.Sockets.TcpClient]::new()
-    try { $up = $tcp.ConnectAsync('127.0.0.1', 47821).Wait(500) } catch { $up = $false } finally { $tcp.Dispose() }
-    if (-not $up) {
+    if (-not (Test-PxpipeProxy)) {
         Write-Error 'pxpipe proxy is not listening on 127.0.0.1:47821. Start it first.'
         return
     }
+    Start-PxpipeBackgroundUpdate
 
     # Bare `claude` needs pxpipe >= 0.14.0 (teamchong/pxpipe#294).
     $prevBaseUrl = $env:ANTHROPIC_BASE_URL
