@@ -340,9 +340,13 @@ Then either open a new terminal, or reload profile: . `$PROFILE
 "@
 }
 
-# Claude Code through the always-on pxpipe proxy (task-win-pxpipe-proxy.vbs, :47821).
-# `pxpipe warp` diverts only /v1/messages, so /remote-control and claude.ai
-# connectors keep working; they switch off whenever ANTHROPIC_BASE_URL is set.
+# Agents through the always-on pxpipe proxy (task-win-pxpipe-proxy.vbs, :47821).
+# `pxpipe warp` diverts only the inference paths it knows (api.anthropic.com
+# /v1/messages, Gemini generateContent, daily-cloudcode-pa), so /remote-control
+# and claude.ai connectors keep working. They switch off whenever
+# ANTHROPIC_BASE_URL is set. claude-px, omp-px, and agy-px hit those paths.
+# grok-px and cursor-px use the same launcher; pxpipe 0.14.0 does not route
+# cli-chat-proxy.grok.com or api2.cursor.sh, so those two are tunneled as-is.
 function Test-PxpipeProxy {
     $tcp = [System.Net.Sockets.TcpClient]::new()
     try { $tcp.ConnectAsync('127.0.0.1', 47821).Wait(500) } catch { $false } finally { $tcp.Dispose() }
@@ -352,16 +356,17 @@ function Test-PxpipeProxy {
 # effect after a restart. Restart only when nobody is connected: a restart drops
 # whatever request another session has in flight.
 function Update-PxpipeProxyIfIdle {
+    param([string]$Label = 'pxpipe')
     $pkg = Join-Path (Split-Path (Get-Command pxpipe).Source) 'node_modules\pxpipe-proxy\package.json'
     $listen = Get-NetTCPConnection -LocalPort 47821 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $listen -or -not (Test-Path $pkg)) { return }
     $proc = Get-Process -Id $listen.OwningProcess -ErrorAction SilentlyContinue
     if (-not $proc -or $proc.StartTime -gt (Get-Item $pkg).LastWriteTime) { return }
     if (Get-NetTCPConnection -LocalPort 47821 -State Established -ErrorAction SilentlyContinue) {
-        Write-Host '[claude-px] pxpipe update installed; proxy busy, restart deferred.' -ForegroundColor DarkYellow
+        Write-Host "[$Label] pxpipe update installed; proxy busy, restart deferred." -ForegroundColor DarkYellow
         return
     }
-    Write-Host '[claude-px] restarting pxpipe proxy onto the new version...' -ForegroundColor Cyan
+    Write-Host "[$Label] restarting pxpipe proxy onto the new version..." -ForegroundColor Cyan
     Stop-Process -Id $proc.Id -Force
     # The logon task's wscript exits with node; starting it again keeps supervision.
     $deadline = (Get-Date).AddSeconds(10)
@@ -372,7 +377,7 @@ function Update-PxpipeProxyIfIdle {
     while (-not (Test-PxpipeProxy) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
 }
 
-# Upgrade in the background so launch never waits on npm; the next claude-px
+# Upgrade in the background so launch never waits on npm; the next *-px
 # picks it up (and restarts the proxy if idle).
 function Start-PxpipeBackgroundUpdate {
     $cmd = '$v = npm view pxpipe-proxy version 2>$null; if ($v -and $v -ne (pxpipe --version)) { npm i -g pxpipe-proxy@latest --no-audit --no-fund }'
@@ -380,12 +385,20 @@ function Start-PxpipeBackgroundUpdate {
         -ArgumentList '-NoProfile', '-Command', $cmd
 }
 
-function claude-px {
+# Quoted '--': PowerShell swallows a bare `--` before it reaches pxpipe.ps1.
+# ANTHROPIC_BASE_URL is cleared because warp only keeps first-party gates
+# (/remote-control, claude.ai connectors) when that variable is unset.
+function Invoke-PxpipeWarp {
+    param(
+        [Parameter(Mandatory)][string]$Label,
+        [Parameter(Mandatory)][string]$Command,
+        [string[]]$AgentArgs = @()
+    )
     if (-not (Get-Command pxpipe -ErrorAction SilentlyContinue)) {
         Write-Error 'pxpipe not found. Install: npm i -g pxpipe-proxy'
         return
     }
-    Update-PxpipeProxyIfIdle
+    Update-PxpipeProxyIfIdle -Label $Label
     # Without the proxy, warp still starts but every request fails.
     if (-not (Test-PxpipeProxy)) {
         Write-Error 'pxpipe proxy is not listening on 127.0.0.1:47821. Start it first.'
@@ -393,15 +406,44 @@ function claude-px {
     }
     Start-PxpipeBackgroundUpdate
 
-    # Bare `claude` needs pxpipe >= 0.14.0 (teamchong/pxpipe#294).
     $prevBaseUrl = $env:ANTHROPIC_BASE_URL
     $env:ANTHROPIC_BASE_URL = $null
     try {
-        # Quoted: PowerShell swallows a bare `--` before it reaches pxpipe.ps1.
-        pxpipe warp '--' claude @args
+        if ($AgentArgs.Count -gt 0) {
+            pxpipe warp '--' $Command @AgentArgs
+        } else {
+            pxpipe warp '--' $Command
+        }
     } finally {
         $env:ANTHROPIC_BASE_URL = $prevBaseUrl
     }
+}
+
+function claude-px { Invoke-PxpipeWarp -Label 'claude-px' -Command claude -AgentArgs @($args) }
+function omp-px { Invoke-PxpipeWarp -Label 'omp-px' -Command omp -AgentArgs @($args) }
+function agy-px { Invoke-PxpipeWarp -Label 'agy-px' -Command agy -AgentArgs @($args) }
+function grok-px { Invoke-PxpipeWarp -Label 'grok-px' -Command grok -AgentArgs @($args) }
+
+function cursor-px {
+    $cursorAgent = Resolve-CursorAgentCommand
+    if (-not $cursorAgent) {
+        Write-Error @"
+Cursor Agent not found (expected: $env:LOCALAPPDATA\cursor-agent\agent.ps1).
+Install: irm 'https://cursor.com/install?win32=true' | iex
+Then either open a new terminal, or reload profile: . `$PROFILE
+"@
+        return
+    }
+    # warp on Windows only spawn()s .exe/.com. cursor-agent is a .ps1, so the
+    # warp child is pwsh and node.exe inherits HTTPS_PROXY plus the warp CA.
+    $pwsh = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+    if (-not $pwsh) {
+        Write-Error 'pwsh not found; cursor-px needs PowerShell 7 to launch Cursor Agent under pxpipe warp.'
+        return
+    }
+    Invoke-PxpipeWarp -Label 'cursor-px' -Command $pwsh -AgentArgs (@(
+            '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $cursorAgent
+        ) + @($args))
 }
 
 function c { composer @args }
