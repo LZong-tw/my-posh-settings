@@ -344,7 +344,7 @@ Then either open a new terminal, or reload profile: . `$PROFILE
 # `pxpipe warp` diverts only the inference paths it knows (api.anthropic.com
 # /v1/messages, Gemini generateContent, daily-cloudcode-pa), so /remote-control
 # and claude.ai connectors keep working. They switch off whenever
-# ANTHROPIC_BASE_URL is set. claude-px, omp-px, and agy-px hit those paths.
+# ANTHROPIC_BASE_URL is set. claude-px, omp-px, agy-px, and pi-px hit those paths.
 # grok-px and cursor-px use the same launcher; pxpipe 0.14.0 does not route
 # cli-chat-proxy.grok.com or api2.cursor.sh, so those two are tunneled as-is.
 function Test-PxpipeProxy {
@@ -423,6 +423,24 @@ function claude-px { Invoke-PxpipeWarp -Label 'claude-px' -Command claude -Agent
 function omp-px { Invoke-PxpipeWarp -Label 'omp-px' -Command omp -AgentArgs @($args) }
 function agy-px { Invoke-PxpipeWarp -Label 'agy-px' -Command agy -AgentArgs @($args) }
 function grok-px { Invoke-PxpipeWarp -Label 'grok-px' -Command grok -AgentArgs @($args) }
+
+function pi-px {
+    $pi = (Get-Command pi.ps1 -ErrorAction SilentlyContinue).Source
+    if (-not $pi) {
+        Write-Error 'pi not found. Install: npm i -g @earendil-works/pi-coding-agent'
+        return
+    }
+    # npm publishes pi as pi.ps1. warp on Windows only spawn()s .exe/.com, so the
+    # warp child is pwsh and node.exe inherits HTTPS_PROXY plus the warp CA.
+    $pwsh = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+    if (-not $pwsh) {
+        Write-Error 'pwsh not found; pi-px needs PowerShell 7 to launch pi under pxpipe warp.'
+        return
+    }
+    Invoke-PxpipeWarp -Label 'pi-px' -Command $pwsh -AgentArgs (@(
+            '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $pi
+        ) + @($args))
+}
 
 function cursor-px {
     $cursorAgent = Resolve-CursorAgentCommand
