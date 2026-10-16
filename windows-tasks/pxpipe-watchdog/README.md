@@ -20,10 +20,10 @@ pwsh -File .\install.ps1
 
 - A healthy probe deletes the state file, so slow-but-answering never accumulates failures.
 - The failure count belongs to one proxy pid; a freshly started proxy does not inherit the previous one's failures.
-- Proxy process alive but silent: restart on the 3rd consecutive failure.
+- Proxy process alive but silent: on the 3rd consecutive failure, re-probe with a 30 s timeout. If it answers (SLOW) leave it alone and re-probe next run; if not (DEAD) kill and restart.
 - Task running with no proxy process (launcher busy on `npm i -g`, or wedged): restart on the 5th.
 - No task running: start it.
-- Log: `%LOCALAPPDATA%\pxpipe-watchdog.log` (written only on unhealthy runs). State: `%LOCALAPPDATA%\pxpipe-watchdog.state` (`pid:count`).
+- Log: `%LOCALAPPDATA%\pxpipe-watchdog.log`. Unhealthy runs log the probe status/error and probe vs wmi time; the pre-kill re-probe logs SLOW/DEAD with available RAM; kills log working set, CPU and threads; healthy probes over 2 s log `slow probe`; the first healthy probe after a restart logs `recovered: healthy Ns after restart`. State: `%LOCALAPPDATA%\pxpipe-watchdog.state` (`pid:count`), `pxpipe-watchdog.restart` (restart timestamp).
 
 ## Task settings that matter
 
