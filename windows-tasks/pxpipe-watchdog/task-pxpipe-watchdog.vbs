@@ -105,9 +105,13 @@ If running And proxyAlive And fails < 3 Then WScript.Quit 0
 If running And Not proxyAlive And fails < 5 Then WScript.Quit 0
 
 ' Evidence for tuning the thresholds: is the proxy dead, or just slow? A 30 s
-' re-probe plus the process and machine state at the moment of the kill.
-Dim verdict, mem
-If Probe(30000) Then
+' re-probe plus the process and machine state at the moment of the kill. A proxy
+' that answers the re-probe is slow, not wedged: killing it only adds a restart gap
+' (and the launcher's npm update) on top of the pressure that slowed it, so leave
+' it alone. The failure count stays, so the next run re-probes again.
+Dim verdict, mem, isSlow
+isSlow = Probe(30000)
+If isSlow Then
     verdict = "SLOW (answered 200 in " & probeSecs & "s)"
 Else
     verdict = "DEAD (status=" & probeStatus & " err=[" & probeErr & "] after " & probeSecs & "s)"
@@ -119,6 +123,10 @@ For Each p In wmi.ExecQuery("SELECT AvailableMBytes FROM Win32_PerfFormattedData
 Next
 On Error GoTo 0
 WriteLog "pre-kill reprobe(30s): " & verdict & "; avail RAM " & mem & " MB"
+If isSlow Then
+    WriteLog "not killing: proxy pid " & proxyPid & " is slow but answering"
+    WScript.Quit 0
+End If
 
 For Each p In procs
     If Not IsNull(p.CommandLine) Then
